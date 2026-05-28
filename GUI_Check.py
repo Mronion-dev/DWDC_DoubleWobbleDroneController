@@ -42,7 +42,8 @@ print(true_port)
 
 if true_port == None:          
     screen.fill("Black")
-    screen.blit((my_font.render("No port available for use ¯\_('v')_/¯ ", True, (255,255,255))), (1280/2-300,720/2-50))
+    com_not_found = my_font.render("No port available for use ¯\_('v')_/¯ ", True, (255,255,255))
+    screen.blit(com_not_found, (1280/2-com_not_found.get_width()/2,720/2))
     pygame.display.flip()
     time.sleep(5)
     running = False
@@ -58,7 +59,7 @@ try:
 except:
     tadext = "Controller not found, connect a controller and restart the script"
     tadext_render = my_font.render(tadext, True, (255,0,0))
-    screen.blit(tadext_render, (640 + tadext_port.get_width(),360 ))
+    screen.blit(tadext_render, (640 - tadext_render.get_width()/2,385 ))
     pygame.display.flip()
     time.sleep(5)
     pygame.quit()
