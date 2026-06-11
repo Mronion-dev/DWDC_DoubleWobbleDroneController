@@ -1,53 +1,126 @@
+/*
+ * RF24 Bidirectional Communication - Single Code for Both Nodes
+ * Based on the official 'pingpair' example.
+ *
+ * Hardware:
+ * CE -> Pin 9
+ * CSN -> Pin 10
+ * Role Pin -> Pin 7 (short to ground)
+ */
+
 #include <SPI.h>
-#include <RF24.h>
+#include "nRF24L01.h"
+#include "RF24.h"
+#include "printf.h"
 
-String receivedText = "";
+// 1. Hardware Configuration
+RF24 radio(9, 10); // CE, CSN
+const int role_pin = 7; // Pin to determine role
 
-RF24 radio(9, 10);
+// 2. Addressing Configuration
+// Two unique addresses are required for full-duplex auto-acknowledgment.
+// Pipe 0 (TX) and Pipe 1 (RX) swap these addresses based on role.
+const uint64_t pipes[] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+
+// 3. Role Definitions
+typedef enum { role_ping_out = 1, role_pong_back } role_e;
+const char* role_friendly_name[] = { "invalid", "Ping Out (Sender)", "Pong Back (Receiver)" };
+role_e role;
+
+// Data structure for transmission
+unsigned long send_time;
+unsigned long received_time;
 
 void setup() {
-  Serial.begin(115200);
+	Serial.begin(115200);
+	while (!Serial); // Serial is needed on remote side
 
-	if (!radio.begin()) {
-    Serial.println("404/rf");
-  }
-	else {
-		  Serial.println("NRF24 initialized");
-	}	
+	// Determine Role based on Pin 7
+	pinMode(role_pin, INPUT_PULLUP);
+	delay(20); // Stabilize reading
+	role_ping_back; // this is the server side board
 
-  radio.setPALevel(RF24_PA_LOW);
-	//NOTE FOR SELF: set everything under this curly braket the same for the receiving arduino
-	//{
-  radio.setChannel(100);
-  radio.openWritingPipe(0xF0F0F0F0E1LL);
-  radio.stopListening();
-	//}
+
+	printf_begin();
+	Serial.print("\n\rRF24 Bidirectional Setup\n\rRole: ");
+	Serial.println(role_friendly_name[role]);
+
+	// Radio Initialization
+	radio.begin();
+	radio.setRetries(15, 15); // Max delay, max retries for reliability
+	radio.setPayloadSize(8);  // Send 'unsigned long' (8 bytes on most Arduinos)
+
+	// Address Configuration
+	if (role == role_ping_out) {
+		// Sender: Writes to Pipe[0], Listens on Pipe[1] for ACK/Response
+		radio.openWritingPipe(pipes[0]);
+		radio.openReadingPipe(1, pipes[1]);
+	} else {
+		// Receiver: Writes to Pipe[1] (for ACK), Listens on Pipe[0] for Data
+		radio.openWritingPipe(pipes[1]);
+		radio.openReadingPipe(1, pipes[0]);
+	}
+
+	radio.startListening();
+	radio.printDetails(); // Dump config to Serial for debugging
 }
 
 void loop() {
+	// --- PING OUT ROLE (Sender) ---
+	if (role == role_ping_out) {
+		Serial.print("Sending request... ");
 
-  // Check if data exists
-  if (Serial.available() > 0) {
-    receivedText.trim();
-		if (receivedText = "REPLY"){
-			Serial.println("YES");
+		// 1. Stop listening and send
+		radio.stopListening();
+		send_time = millis();
+		bool ok = radio.write(&send_time, sizeof(unsigned long));
+
+		if (ok) {
+			Serial.println("Sent.");
+		} else {
+			Serial.println("Failed.");
 		}
-		Serial.println("RE");
-    receivedText = Serial.readStringUntil('\n');
 
+		// 2. Switch back to listen for response
+		radio.startListening();
 
-		if (receivedText == "DSCNT") {
-			Serial.println("DI")
-			Serial.println("CONTROLLER DISCONNECTED");
-			Serial.println("ENTERING SAFETY LANDING MODE");
-			char Safety[32] = {0};
-			receivedText = "0";
-			receivedText.toCharArray(Safety, 32);
-			radio.write(&Safety, sizeof(Safety));
-			Serial.println("SAFETY PROTOCOL ACTIVATED, CONNECT A CONTROLLER WITHIN 5 SECONDS");
+		// 3. Wait for response (Timeout: 250ms)
+		unsigned long started_waiting_at = millis();
+		bool timeout = false;
+		while (!radio.available() && !timeout) {
+			if (millis() - started_waiting_at > 250) timeout = true;
 		}
-		char buffer[32] = {0};
-		receivedText.toCharArray(buffer, 32);
-		radio.write(&buffer, sizeof(buffer));
-  }
+
+		// 4. Process Response
+		if (timeout) {
+			Serial.println("Response timed out.");
+		} else {
+			radio.read(&received_time, sizeof(unsigned long));
+			Serial.print("Response received: ");
+			Serial.print(received_time);
+			Serial.print(" | Round-trip delay: ");
+			Serial.println(millis() - send_time);
+		}
+
+		delay(1000); // Wait 1 second before next ping
+	}
+
+	// --- PONG BACK ROLE (Receiver) ---
+	if (role == role_pong_back) {
+		if (radio.available()) {
+			// 1. Read the incoming data
+			radio.read(&received_time, sizeof(unsigned long));
+			Serial.print("Received: ");
+			Serial.println(received_time);
+
+			// 2. Prepare response (echo back the time or send own timestamp)
+			unsigned long response_time = millis();
+
+			// 3. Stop listening, send response, resume listening
+			radio.stopListening();
+			radio.write(&response_time, sizeof(unsigned long));
+			Serial.println("Sent response.");
+			radio.startListening();
+		}
+	}
 }
