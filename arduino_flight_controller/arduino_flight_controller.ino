@@ -30,7 +30,8 @@ role_e role;
 // Data structure for transmission
 unsigned long send_time;
 unsigned long received_time;
-
+unsigned long time_to_sub;
+char text_to_send[12];
 void setup() {
 	Serial.begin(115200);
 	while (!Serial); // Serial is needed on remote side
@@ -63,11 +64,11 @@ void setup() {
 
 	radio.startListening();
 	radio.printDetails(); // Dump config to Serial for debugging
+	time_to_sub = millis();
 }
 
 void loop() {
-	// --- PING OUT ROLE (Sender) ---
-	if (role == role_ping_out) {
+	if (millis() - time_to_sub >= 1000) {
 		Serial.print("Sending request... ");
 
 		// 1. Stop listening and send
@@ -101,26 +102,12 @@ void loop() {
 			Serial.print(" | Round-trip delay: ");
 			Serial.println(millis() - send_time);
 		}
-
-		delay(1000); // Wait 1 second before next ping
+		time_to_sub = millis();
 	}
-
-	// --- PONG BACK ROLE (Receiver) ---
-	if (role == role_pong_back) {
-		if (radio.available()) {
-			// 1. Read the incoming data
-			radio.read(&received_time, sizeof(unsigned long));
-			Serial.print("Received: ");
-			Serial.println(received_time);
-
-			// 2. Prepare response (echo back the time or send own timestamp)
-			unsigned long response_time = millis();
-
-			// 3. Stop listening, send response, resume listening
-			radio.stopListening();
-			radio.write(&response_time, sizeof(unsigned long));
-			Serial.println("Sent response.");
-			radio.startListening();
-		}
+	if (Serial.available()) {
+		Serial.readBytes(text_to_send, 12);
+		radio.stopListening();
+		send_time = millis();
+		//ill continue this later <3
 	}
 }
