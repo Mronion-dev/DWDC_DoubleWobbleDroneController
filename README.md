@@ -13,7 +13,7 @@ The goal of this project is to provide a simple and affordable drone platform th
 
 ## Required Parts
 
-## Drone (DW)
+## Arduino Drone (DW) 
 
 | Quantity | Part |
 |--------:|------|
@@ -40,6 +40,22 @@ The goal of this project is to provide a simple and affordable drone platform th
 | 1x | a computer (phone serial monitor emulation coming in later versions) |
 | 1x | Any microcontroller with exposed SPI pins, arduino uno recommended: 3.3v stable supply + Ease of adding extra features |
 | 1x | NRF24L01 wireless transceiver (PA + LNA optional, still not recommended: can cause issues if drone gets out of line of sight of antenna) |
+
+## ESP-NOW Capable Drone (ENDW)
+| Quantity | Part |
+|--------:|------|
+| 2x | ESP32 (or any ESP-NOW capable board) |
+| 1x | 3S LiPo battery (any size that fits the frame) |
+| 2x | 30A ESC (Electronic Speed Controller) |
+| 2x | BLDC motors (2200KV or lower, must be the A2212 lineup) |
+| 2x | SG90 9g servo motors |
+| 1x | I2C gyroscope/IMU (needed for stabalization and real-time simulation program ) |
+
+### Notes
+
+- Controller side ESP32 is included in the drone parts
+- signal interference sucks, be the bigger guy and manage your cables
+- capacitors are recommended (47 micro fahret 6V+) but not needed
 
 ### Optional
 
