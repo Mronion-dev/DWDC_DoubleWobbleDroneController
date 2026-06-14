@@ -23,7 +23,7 @@ The goal of this project is to provide a simple and affordable drone platform th
 | 2x | BLDC motors (2200KV or lower, must be the A2212 lineup) |
 | 2x | SG90 9g servo motors |
 | 1x | NRF24L01 wireless transceiver (PA + LNA version with antenna optional but not recommended) |
-| 1x | I2C gyroscope/IMU (needed for stabalization ( and real-time simulation program coming later ;D )) |
+| 1x | I2C gyroscope/IMU (needed for stabalization only)|
 
 ### Notes
 
